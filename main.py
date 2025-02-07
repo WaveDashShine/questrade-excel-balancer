@@ -2,9 +2,9 @@ from enum import Enum
 import pandas as pd
 import os
 import copy
-import pprint
+from dataclasses import dataclass, fields
 
-CASH_TO_INVEST = 12000
+CASH_TO_INVEST = 17000
 CURRENT_DIR_PATH = os.path.dirname(os.path.abspath(__file__))
 PATH_TO_EXCEL_FILE = os.path.join(CURRENT_DIR_PATH, "InvestmentSummary.xlsx")
 POSITIONS_SHEET_NAME = "Positions"
@@ -21,14 +21,15 @@ class AssetClassification(Enum):
 
 
 # roughly from random walk down wall street
+# TODO: move to YAML
 class PercentageTargets:
     STOCKS_USA_SMALL_CAP = 0.10
-    STOCKS_USA_SP500 = 0.25
-    STOCKS_EMERGING_MARKET = 0.10
+    STOCKS_USA_SP500 = 0.40
+    STOCKS_EMERGING_MARKET = 0.05
     STOCKS_INTERNATIONAL = 0.25
     BONDS_CORP = 0.10
     BONDS_EMERGING_MARKET = 0.05
-    REAL_ESTATE = 0.10
+    REAL_ESTATE = 0.05
 
 
 def get_percentage_target(classification: AssetClassification) -> float:
@@ -52,17 +53,17 @@ def get_percentage_target(classification: AssetClassification) -> float:
 
 class Asset:
     def __init__(self, symbol: str,
-                 cost_per_share: float,
+                 market_price: float,
                  quantity: int,
                  description: str = ""):
         self.symbol: str = symbol.upper()
-        self.cost_per_share: float = round(cost_per_share, 2)
+        self.market_price: float = round(market_price, 2)
         self.quantity: int = quantity
         self.description = description
         self.classification: AssetClassification = self._get_classification()
 
     def get_value(self):
-        return self.quantity * self.cost_per_share
+        return self.quantity * self.market_price
 
     def _get_classification(self) -> AssetClassification:
         if self.symbol in ["VNQ"]:
@@ -81,7 +82,7 @@ class Asset:
             return AssetClassification.BONDS_EMERGING_MARKET
 
     def print(self, description: bool = True, classification: bool = False):
-        print(self.symbol, self.quantity, self.cost_per_share, "\n" if description or classification else "",
+        print(self.symbol, self.quantity, f"@ ${self.market_price}", "\n" if description or classification else "",
               self.description if description else "", self.classification if classification else "")
 
 
@@ -148,7 +149,7 @@ def generate_portfolio(positions_dict: dict) -> PortFolio:
     asset_list: list[Asset] = []
     for key, asset_dict in positions_dict.items():
         asset = Asset(symbol=asset_dict.get("Equity Symbol"),
-                      cost_per_share=asset_dict.get("Cost Per Share"),
+                      market_price=asset_dict.get("Market Price"),
                       quantity=asset_dict.get("Quantity"),
                       description=asset_dict.get("Equity Description"))
         asset_list.append(asset)
@@ -193,7 +194,7 @@ def get_difference_portfolio(starting_portfolio: PortFolio, new_portfolio: PortF
             bought_quantity = asset.quantity - starting_asset.quantity
             if bought_quantity > 0:
                 newly_bought_asset: Asset = Asset(symbol=asset.symbol,
-                                                  cost_per_share=asset.cost_per_share,
+                                                  market_price=asset.market_price,
                                                   quantity=bought_quantity,
                                                   description=asset.description)
                 newly_bought_assets.append(newly_bought_asset)
